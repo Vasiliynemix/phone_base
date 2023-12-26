@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 
 from src.bot.filters.register import RegisterFilter
 from src.bot.keyboards.start import start_mp
-from src.bot.lexicon.kexicon import START_COMMAND_MSG
+from src.bot.lexicon.lexicon import START_COMMAND_MSG
 
 router = Router()
 

@@ -67,11 +67,20 @@ class PhoneRepo(Repository[Phone]):
 
         await self.session.commit()
 
+    async def update_last_quantity(self, user_id: int, name: str, last_quantity: int):
+        stmt = select(Phone).where(Phone.user_id == user_id).where(Phone.name == name)
+
+        phone = await self.session.scalar(stmt)
+        phone.last_quantity += last_quantity
+
+        await self.session.commit()
+
     async def update_numbers(self, user_id: int, name: str, numbers: str):
         stmt = select(Phone).where(Phone.user_id == user_id).where(Phone.name == name)
 
         phone = await self.session.scalar(stmt)
         phone.numbers = numbers
+        phone.last_quantity = 0
 
         await self.session.commit()
 

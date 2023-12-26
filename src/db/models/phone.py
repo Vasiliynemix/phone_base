@@ -10,3 +10,5 @@ class Phone(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     numbers: Mapped[str] = mapped_column(Text, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    last_quantity: Mapped[int] = mapped_column(BigInteger, default=0, nullable=True)

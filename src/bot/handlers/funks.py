@@ -53,15 +53,16 @@ async def create_file_text(text: str, name: str, user_id: int) -> tuple[str, str
     return path_to_dir_user, path_to_file
 
 
-async def create_text_links(phones: Phone, quantity: int) -> str:
+async def create_text_links(phones: Phone, quantity: int, last_quantity: int) -> str:
     url = "https://wa.me/"
 
     numbers = phones.numbers.split("|")
+    numbers = numbers[last_quantity:]
 
     text = ""
     for i, number in enumerate(numbers[:quantity]):
         random_text = generate_random_text(phones.text)
-        text += f'<a href="{url}{number}?text={random_text}">{i + 1}. {number}</a>\n'
+        text += f'<a href="{url}{number}?text={random_text}">{i + 1 + last_quantity}. {number}</a>\n'
 
     return text
 
@@ -83,7 +84,7 @@ def generate_random_text(text: str) -> str:
             .replace("’", "")
             .replace("•", "")
         )
-        # text = html.escape(text)
+        text = html.escape(text)
 
     return text
 

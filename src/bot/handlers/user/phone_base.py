@@ -21,7 +21,7 @@ from src.bot.keyboards.user.inline.phone_list import (
 )
 from src.bot.keyboards.user.reply.cancel import cancel_mp
 from src.bot.keyboards.yes_no import yes_no_mp
-from src.bot.lexicon.kexicon import (
+from src.bot.lexicon.lexicon import (
     CANCEL_MSG,
     BASES_MSG,
     ADD_CSV_MSG,
@@ -33,6 +33,17 @@ from src.bot.lexicon.kexicon import (
     ADD_PHONE_NAME_EXISTS_MSG,
     phone_name_long_msg,
     ADD_PHONE_TEXT_MSG,
+    phone_text_not_valid_msg,
+    EDIT_TEXT_SUCCESS_MSG,
+    phone_add_new_msg,
+    ADD_PHONE_SUCCESS_MSG,
+    ADD_PHONE_CANCEL_MSG,
+    BASES_EMPTY_MSG,
+    BASES_LIST_MSG,
+    phone_base_click_msg,
+    GET_LINKS_MSG,
+    GET_LINKS_WRONG_MSG,
+    ALL_NUMBERS_SHOWED_MSG,
 )
 from src.bot.structures.state.user import (
     AddPhoneBaseState,
@@ -95,6 +106,7 @@ async def phone_base_csv(message: Message, state: FSMContext, db: Database, bot:
         await db.phone.update_numbers(
             user_id=message.from_user.id, name=name, numbers=file_text
         )
+
         await state.clear()
         await message.answer(EDIT_FILE_SUCCESS_MSG, reply_markup=start_mp)
         return
@@ -154,8 +166,7 @@ async def phone_base_text(message: Message, state: FSMContext, db: Database):
     if not check_open or not check_cancel or not check_pipe:
         text_template = "\n".join(matches)
         await message.answer(
-            f"текст не соответствует шаблону.\n\nНайденные шаблоны:\n"
-            f"{text_template}\n\nПроверьте текст и введите еще раз",
+            phone_text_not_valid_msg(text_template),
             reply_markup=cancel_mp,
         )
         return
@@ -168,7 +179,7 @@ async def phone_base_text(message: Message, state: FSMContext, db: Database):
             user_id=message.from_user.id, name=name, text=message.text
         )
         await state.clear()
-        await message.answer("Текст обновлен", reply_markup=start_mp)
+        await message.answer(EDIT_TEXT_SUCCESS_MSG, reply_markup=start_mp)
         return
 
     await state.update_data(text=message.text)
@@ -179,12 +190,7 @@ async def phone_base_text(message: Message, state: FSMContext, db: Database):
     await state.set_state(AddPhoneBaseState.end)
 
     await message.answer(
-        (
-            f"Настройки новой базы:\n"
-            f"<b>Название:</b>\n{name}\n"
-            f"<b>Текст:</b>\n{text}\n\n"
-            f"Все верно?"
-        ),
+        phone_add_new_msg(name, text),
         reply_markup=yes_no_mp,
         parse_mode="HTML",
     )
@@ -208,14 +214,14 @@ async def phone_base_yes(callback: Message, state: FSMContext, bot: Bot, db: Dat
 
     await state.clear()
     await callback.answer()
-    await callback.message.answer("База добавлена", reply_markup=start_mp)
+    await callback.message.answer(ADD_PHONE_SUCCESS_MSG, reply_markup=start_mp)
 
 
 @router.callback_query(F.data == "no", AddPhoneBaseState.end)
 async def phone_base_yes(callback: Message, state: FSMContext):
     await state.clear()
     await callback.answer()
-    await callback.message.answer("Отмена добавления новой базы", reply_markup=start_mp)
+    await callback.message.answer(ADD_PHONE_CANCEL_MSG, reply_markup=start_mp)
 
 
 @router.callback_query(F.data == "phone_base_list")
@@ -227,13 +233,13 @@ async def phone_base_list(callback: Message, db: Database):
         user_id=callback.from_user.id, offset=page, limit=cfg.db.limit_phones
     )
     if len(phones) == 0:
-        await callback.message.answer("Список баз пуст", reply_markup=start_mp)
+        await callback.message.answer(BASES_EMPTY_MSG, reply_markup=start_mp)
         return
 
     name_list = [phone.name for phone in phones]
 
     await callback.message.edit_text(
-        "Список баз",
+        BASES_LIST_MSG,
         reply_markup=await create_bookmarks_keyboard(name_list, page, has_more),
     )
 
@@ -252,7 +258,7 @@ async def next_page(callback: Message, db: Database):
     name_list = [phone.name for phone in phones]
 
     await callback.message.edit_text(
-        "Список баз",
+        BASES_LIST_MSG,
         reply_markup=await create_bookmarks_keyboard(name_list, page, has_more),
     )
 
@@ -271,7 +277,7 @@ async def prev_page(callback: Message, db: Database):
     name_list = [phone.name for phone in phones]
 
     await callback.message.edit_text(
-        "Список баз",
+        BASES_LIST_MSG,
         reply_markup=await create_bookmarks_keyboard(name_list, page, has_more),
     )
 
@@ -281,7 +287,7 @@ async def phone_name(callback: Message, db: Database):
     await callback.answer()
     name = callback.data.split("|")[1]
     phone = await db.phone.get(user_id=callback.from_user.id, name=name)
-    text = f"Название:\n{phone.name}\nтекст:\n{phone.text}\n\nЧто хотите сделать?"
+    text = phone_base_click_msg(phone.name, phone.text)
     await callback.message.edit_text(text, reply_markup=await create_phone_mp(name))
 
 
@@ -295,12 +301,7 @@ async def phone_edit_text(callback: Message, state: FSMContext):
     await callback.message.delete()
 
     await callback.message.answer(
-        "Введите текст. Формат:\n{Добрый день|Здравствуйте}!"
-        " Вам пишет компания «Системы Безопасности»\n\n"
-        "Мы занимаемся {продажей|реализацией} и {установкой|монтажом}"
-        " видеонаблюдения и систем безопасности для коммерческой и частной недвижимости.\n\n"
-        "Подскажите, интересно ли вам усилить безопасность вашего дома или бизнеса?\n\n"
-        "Слова в шаблоне {...|...|...} будут выбираться рандомно для каждой ссылки.",
+        ADD_PHONE_TEXT_MSG,
         reply_markup=cancel_mp,
     )
 
@@ -314,9 +315,7 @@ async def phone_edit_file(callback: Message, state: FSMContext):
 
     await callback.message.delete()
 
-    await callback.message.answer(
-        "Загрузите файл в csv формате с базой номеров", reply_markup=cancel_mp
-    )
+    await callback.message.answer(ADD_CSV_MSG, reply_markup=cancel_mp)
 
 
 @router.callback_query(F.data.startswith("phone_get"))
@@ -349,9 +348,7 @@ async def phone_link(callback: Message, state: FSMContext):
 
     await callback.message.delete()
 
-    await callback.message.answer(
-        "Введите количество ссылок, которые хотите получить", reply_markup=cancel_mp
-    )
+    await callback.message.answer(GET_LINKS_MSG, reply_markup=cancel_mp)
 
 
 @router.message(F.text, GetLinksState.quantity)
@@ -359,21 +356,23 @@ async def phone_link_quantity(message: Message, state: FSMContext, db: Database)
     try:
         quantity = int(message.text)
     except ValueError:
-        await message.answer(
-            "Это не число, введите целое число > 0", reply_markup=cancel_mp
-        )
+        await message.answer(GET_LINKS_WRONG_MSG, reply_markup=cancel_mp)
         return
 
     if quantity <= 0:
-        await message.answer("Введите целое число > 0", reply_markup=cancel_mp)
+        await message.answer(GET_LINKS_WRONG_MSG, reply_markup=cancel_mp)
         return
 
     data = await state.get_data()
     name = data.get("name")
 
     phone = await db.phone.get(user_id=message.from_user.id, name=name)
+    if len(phone.numbers.split("|")) <= phone.last_quantity:
+        await state.clear()
+        await message.answer(ALL_NUMBERS_SHOWED_MSG, reply_markup=start_mp)
+        return
 
-    text = await create_text_links(phone, quantity)
+    text = await create_text_links(phone, quantity, phone.last_quantity)
 
     split_chunks = split_text(text)
 
@@ -385,3 +384,7 @@ async def phone_link_quantity(message: Message, state: FSMContext, db: Database)
             disable_web_page_preview=True,
             parse_mode="HTML",
         )
+
+    await db.phone.update_last_quantity(
+        user_id=message.from_user.id, name=name, last_quantity=quantity
+    )
