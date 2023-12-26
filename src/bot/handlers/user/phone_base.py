@@ -21,6 +21,19 @@ from src.bot.keyboards.user.inline.phone_list import (
 )
 from src.bot.keyboards.user.reply.cancel import cancel_mp
 from src.bot.keyboards.yes_no import yes_no_mp
+from src.bot.lexicon.kexicon import (
+    CANCEL_MSG,
+    BASES_MSG,
+    ADD_CSV_MSG,
+    BACK_MSG,
+    ADD_NO_CSV_MSG,
+    ADD_WRONG_FORMAT_CSV_MSG,
+    EDIT_FILE_SUCCESS_MSG,
+    phone_name_add_text_msg,
+    ADD_PHONE_NAME_EXISTS_MSG,
+    phone_name_long_msg,
+    ADD_PHONE_TEXT_MSG,
+)
 from src.bot.structures.state.user import (
     AddPhoneBaseState,
     EditPhoneBaseState,
@@ -35,35 +48,33 @@ router = Router()
 @router.message(F.text == "Отмена")
 async def cancel(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Отменено", reply_markup=start_mp)
+    await message.answer(CANCEL_MSG, reply_markup=start_mp)
 
 
 @router.message(F.text == "📱Базы номеров")
 async def phone_base(message: Message):
-    await message.answer("Базы номеров", reply_markup=list_phone_base_mp)
+    await message.answer(BASES_MSG, reply_markup=list_phone_base_mp)
 
 
 @router.callback_query(F.data == "phone_base_list_back")
 @router.callback_query(F.data == "phone_cancel")
 async def phone_base_list_back(callback: Message):
     await callback.answer()
-    await callback.message.edit_text("Список баз", reply_markup=list_phone_base_mp)
+    await callback.message.edit_text(BACK_MSG, reply_markup=list_phone_base_mp)
 
 
 @router.callback_query(F.data == "phone_base_add")
 async def phone_base_add(callback: Message, state: FSMContext):
     await callback.answer()
     await state.set_state(AddPhoneBaseState.csv)
-    await callback.message.answer(
-        "загрузите csv файл с базой номеров", reply_markup=cancel_mp
-    )
+    await callback.message.answer(ADD_CSV_MSG, reply_markup=cancel_mp)
 
 
 @router.message(F.document, AddPhoneBaseState.csv)
 @router.message(F.document, EditPhoneBaseState.file)
 async def phone_base_csv(message: Message, state: FSMContext, db: Database, bot: Bot):
     if message.document.mime_type != "text/csv":
-        await message.answer("Это не csv файл", reply_markup=cancel_mp)
+        await message.answer(ADD_NO_CSV_MSG, reply_markup=cancel_mp)
         return
 
     file_id = message.document.file_id
@@ -72,11 +83,7 @@ async def phone_base_csv(message: Message, state: FSMContext, db: Database, bot:
     ok = check_file_text(file_text)
     if not ok:
         await message.answer(
-            (
-                "CSV файл не в нужном формате\n"
-                "В нем не может быть ничего кроме номеров в одной колонке\n"
-                "Номера в формате 7хххххххххх"
-            ),
+            ADD_WRONG_FORMAT_CSV_MSG,
             reply_markup=cancel_mp,
         )
         return
@@ -89,7 +96,7 @@ async def phone_base_csv(message: Message, state: FSMContext, db: Database, bot:
             user_id=message.from_user.id, name=name, numbers=file_text
         )
         await state.clear()
-        await message.answer("Файл обновлен", reply_markup=start_mp)
+        await message.answer(EDIT_FILE_SUCCESS_MSG, reply_markup=start_mp)
         return
 
     await state.update_data(file_id=file_id)
@@ -99,44 +106,38 @@ async def phone_base_csv(message: Message, state: FSMContext, db: Database, bot:
 
     phones_text = ""
     if len(phones) > 0:
-        phones_text += "\nСписок загруженные имен:\n"
+        phones_text += "\nСписок загруженных имен:\n"
         phones_text += "\n".join([phone.name for phone in phones])
 
     await message.answer(
-        f"Введите название базы, оно должно быть уникальным{phones_text}",
+        phone_name_add_text_msg(phones_text),
         reply_markup=cancel_mp,
     )
 
 
 @router.message(AddPhoneBaseState.csv)
 async def phone_base_csv_not_document(message: Message):
-    await message.answer(
-        "Загрузите файл в csv формате с базой номеров", reply_markup=cancel_mp
-    )
+    await message.answer(ADD_CSV_MSG, reply_markup=cancel_mp)
 
 
 @router.message(F.text, AddPhoneBaseState.name)
 async def phone_base_name(message: Message, state: FSMContext, db: Database):
     phone = await db.phone.get(user_id=message.from_user.id, name=message.text)
     if phone is not None:
-        await message.answer(
-            "База с таким название уже существует", reply_markup=cancel_mp
-        )
+        await message.answer(ADD_PHONE_NAME_EXISTS_MSG, reply_markup=cancel_mp)
         return
 
     if len(message.text) > 20:
-        await message.answer(f"Название слишком длинное, символов должно быть не больше 20. Текущая длина {len(message.text)}", reply_markup=cancel_mp)
+        await message.answer(
+            phone_name_long_msg(message.text),
+            reply_markup=cancel_mp,
+        )
         return
 
     await state.update_data(name=message.text)
     await state.set_state(AddPhoneBaseState.text)
     await message.answer(
-        "Введите текст. Формат:\n{Добрый день|Здравствуйте}!"
-        " Вам пишет компания «Системы Безопасности»\n\n"
-        "Мы занимаемся {продажей|реализацией} и {установкой|монтажом}"
-        " видеонаблюдения и систем безопасности для коммерческой и частной недвижимости.\n\n"
-        "Подскажите, интересно ли вам усилить безопасность вашего дома или бизнеса?\n\n"
-        "Слова в шаблоне {...|...|...} будут выбираться рандомно для каждой ссылки.",
+        ADD_PHONE_TEXT_MSG,
         reply_markup=cancel_mp,
     )
 
@@ -379,5 +380,8 @@ async def phone_link_quantity(message: Message, state: FSMContext, db: Database)
     await state.clear()
     for chunk in split_chunks:
         await message.answer(
-            chunk, reply_markup=start_mp, disable_web_page_preview=True, parse_mode="HTML"
+            chunk,
+            reply_markup=start_mp,
+            disable_web_page_preview=True,
+            parse_mode="HTML",
         )

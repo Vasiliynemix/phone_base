@@ -81,8 +81,9 @@ def generate_random_text(text: str) -> str:
             .replace("”", "")
             .replace("‘", "")
             .replace("’", "")
+            .replace("•", "")
         )
-        text = html.escape(text)
+        # text = html.escape(text)
 
     return text
 
