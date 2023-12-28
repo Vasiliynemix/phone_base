@@ -63,7 +63,7 @@ class PhoneRepo(Repository[Phone]):
         stmt = select(Phone).where(Phone.user_id == user_id).where(Phone.name == name)
 
         phone = await self.session.scalar(stmt)
-        phone.text = text
+        phone.text = text + "end_of_text"
 
         await self.session.commit()
 

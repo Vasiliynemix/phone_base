@@ -62,7 +62,9 @@ async def create_text_links(phones: Phone, quantity: int, last_quantity: int) ->
     text = ""
     for i, number in enumerate(numbers[:quantity]):
         random_text = generate_random_text(phones.text)
-        text += f'<a href="{url}{number}?text={random_text}">{i + 1 + last_quantity}. {number}</a>\n'
+        text += f'[{i + 1 + last_quantity}\. {number}]({url}{number})\n`{random_text}`\n\n'
+        # text += f'<a href="{url}{number}">{i + 1 + last_quantity}. {number}</a>\n'
+        # ?text={random_text}
 
     return text
 
@@ -74,17 +76,7 @@ def generate_random_text(text: str) -> str:
         text_list = match_replace.split("|")
         random_element = random.choice(text_list)
         text = text.replace(match, random_element)
-        text = (
-            text.replace("«", "")
-            .replace("»", "")
-            .replace("„", "")
-            .replace("“", "")
-            .replace("”", "")
-            .replace("‘", "")
-            .replace("’", "")
-            .replace("•", "")
-        )
-        text = html.escape(text)
+        # text = html.escape(text)
 
     return text
 
@@ -92,11 +84,11 @@ def generate_random_text(text: str) -> str:
 def split_text(text):
     chunks = []
     while len(text) > 4096:
-        last_tag_end = text.rfind("</a>", 0, 4096)
+        last_tag_end = text.rfind("end_of_text`", 0, 4096)
         if last_tag_end == -1:
             break
-        chunks.append(text[:last_tag_end + len("</a>")])
-        text = text[last_tag_end + len("</a>"):].lstrip()
+        chunks.append(text[:last_tag_end + len("end_of_text`")])
+        text = text[last_tag_end + len("end_of_text`"):].lstrip()
     if text:
         chunks.append(text)
     return chunks

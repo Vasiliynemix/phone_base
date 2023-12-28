@@ -288,6 +288,7 @@ async def phone_name(callback: Message, db: Database):
     name = callback.data.split("|")[1]
     phone = await db.phone.get(user_id=callback.from_user.id, name=name)
     text = phone_base_click_msg(phone.name, phone.text)
+    text = text.replace("end_of_text", "")
     await callback.message.edit_text(text, reply_markup=await create_phone_mp(name))
 
 
@@ -378,11 +379,12 @@ async def phone_link_quantity(message: Message, state: FSMContext, db: Database)
 
     await state.clear()
     for chunk in split_chunks:
+        chunk = chunk.replace("end_of_text`", "`")
         await message.answer(
             chunk,
             reply_markup=start_mp,
             disable_web_page_preview=True,
-            parse_mode="HTML",
+            parse_mode="markdownv2",
         )
 
     await db.phone.update_last_quantity(
