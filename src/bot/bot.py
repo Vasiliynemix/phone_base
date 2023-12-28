@@ -20,11 +20,7 @@ async def start_bot(log: Logger) -> None:
 
     dp = get_dispatcher()
 
-    engine_test = engine(url=cfg.db.build_connection_str, level=cfg.logger.level)
-    async_session = async_session_factory(bind=engine_test)
-    async with async_session() as session:
-        db = Database(session)
-        await db.phone.update_text_not_end_of_text()
+    await update_base_if_needed()
 
     await dp.start_polling(
         bot,
@@ -58,3 +54,11 @@ def get_dispatcher(
     dp.callback_query.middleware(LoggerMiddleware())
 
     return dp
+
+
+async def update_base_if_needed() -> None:
+    engine_test = engine(url=cfg.db.build_connection_str, level=cfg.logger.level)
+    async_session = async_session_factory(bind=engine_test)
+    async with async_session() as session:
+        db = Database(session)
+        # await db.phone.update_text_not_end_of_text()
