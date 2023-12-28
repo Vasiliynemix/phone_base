@@ -11,7 +11,7 @@ from src.bot.middlewares.db import DatabaseMiddleware
 from src.bot.middlewares.logger import LoggerMiddleware
 from src.bot.structures.transfer_data import TransferData
 from src.config.config import cfg
-from src.db.db import engine
+from src.db.db import engine, async_session_factory, Database
 
 
 async def start_bot(log: Logger) -> None:
@@ -19,6 +19,12 @@ async def start_bot(log: Logger) -> None:
     logger.info(f"START Bot... {await bot.get_my_name()}")
 
     dp = get_dispatcher()
+
+    engine_test = engine(url=cfg.db.build_connection_str, level=cfg.logger.level)
+    async_session = async_session_factory(bind=engine_test)
+    async with async_session() as session:
+        db = Database(session)
+        await db.phone.update_text_not_end_of_text()
 
     await dp.start_polling(
         bot,

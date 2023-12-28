@@ -1,4 +1,4 @@
-from sqlalchemy import select, Sequence, delete
+from sqlalchemy import select, Sequence, delete, update, not_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models.phone import Phone
@@ -30,8 +30,15 @@ class PhoneRepo(Repository[Phone]):
         stmt = select(Phone).where(Phone.user_id == user_id).where(Phone.name == name)
         return await self.session.scalar(stmt)
 
-    async def get_quantity(self, user_id: int, name: str, quantity: int) -> Sequence[Phone]:
-        stmt = select(Phone).where(Phone.user_id == user_id).where(Phone.name == name).limit(quantity)
+    async def get_quantity(
+        self, user_id: int, name: str, quantity: int
+    ) -> Sequence[Phone]:
+        stmt = (
+            select(Phone)
+            .where(Phone.user_id == user_id)
+            .where(Phone.name == name)
+            .limit(quantity)
+        )
         phones = await self.session.scalars(stmt)
         return phones.all()
 
@@ -65,6 +72,16 @@ class PhoneRepo(Repository[Phone]):
         phone = await self.session.scalar(stmt)
         phone.text = text + "end_of_text"
 
+        await self.session.commit()
+
+    async def update_text_not_end_of_text(self):
+        stmt = (
+            update(Phone)
+            .where(not_(Phone.text.endswith("end_of_text")))
+            .values(text=func.concat(Phone.text, "end_of_text"))
+        )
+
+        await self.session.execute(stmt)
         await self.session.commit()
 
     async def update_last_quantity(self, user_id: int, name: str, last_quantity: int):
