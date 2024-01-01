@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-async def create_bookmarks_keyboard(
+async def create_regex_pagination_mp(
     name_list: list[str], page: int, has_more: bool
 ) -> InlineKeyboardMarkup:
     kb_builder = InlineKeyboardBuilder()

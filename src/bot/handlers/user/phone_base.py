@@ -1,9 +1,10 @@
 import shutil
 
-from aiofiles import os
+import pyperclip
 from aiogram import Router, F, Bot
+from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, FSInputFile
+from aiogram.types import Message, FSInputFile, CallbackQuery
 
 from src.bot.handlers.funks import (
     get_list_random_text,
@@ -12,12 +13,13 @@ from src.bot.handlers.funks import (
     create_file_text,
     create_text_links,
     split_text,
+    copy_text_to_clipboard,
 )
 from src.bot.keyboards.start import start_mp
 from src.bot.keyboards.user.inline.phone import create_phone_mp
 from src.bot.keyboards.user.inline.phone_base import list_phone_base_mp
 from src.bot.keyboards.user.inline.phone_list import (
-    create_bookmarks_keyboard,
+    create_regex_pagination_mp,
 )
 from src.bot.keyboards.user.reply.cancel import cancel_mp
 from src.bot.keyboards.yes_no import yes_no_mp
@@ -44,6 +46,9 @@ from src.bot.lexicon.lexicon import (
     GET_LINKS_MSG,
     GET_LINKS_WRONG_MSG,
     ALL_NUMBERS_SHOWED_MSG,
+    COPY_TEXT_ERROR_MSG,
+    COPY_TEXT_SUCCESS_MSG,
+    all_links_success_send_msg,
 )
 from src.bot.structures.state.user import (
     AddPhoneBaseState,
@@ -69,7 +74,7 @@ async def phone_base(message: Message):
 
 @router.callback_query(F.data == "phone_base_list_back")
 @router.callback_query(F.data == "phone_cancel")
-async def phone_base_list_back(callback: Message):
+async def phone_base_list_back(callback: CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(BACK_MSG, reply_markup=list_phone_base_mp)
 
@@ -197,7 +202,9 @@ async def phone_base_text(message: Message, state: FSMContext, db: Database):
 
 
 @router.callback_query(F.data == "yes", AddPhoneBaseState.end)
-async def phone_base_yes(callback: Message, state: FSMContext, bot: Bot, db: Database):
+async def phone_base_yes(
+    callback: CallbackQuery, state: FSMContext, bot: Bot, db: Database
+):
     data = await state.get_data()
     name = data.get("name")
     text = data.get("text")
@@ -218,16 +225,17 @@ async def phone_base_yes(callback: Message, state: FSMContext, bot: Bot, db: Dat
 
 
 @router.callback_query(F.data == "no", AddPhoneBaseState.end)
-async def phone_base_yes(callback: Message, state: FSMContext):
+async def phone_base_yes(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.answer()
     await callback.message.answer(ADD_PHONE_CANCEL_MSG, reply_markup=start_mp)
 
 
 @router.callback_query(F.data == "phone_base_list")
-async def phone_base_list(callback: Message, db: Database):
+async def phone_base_list(callback: CallbackQuery, state: FSMContext, db: Database):
     await callback.answer()
     page = 0
+    await state.update_data(page=page)
 
     phones, has_more = await db.phone.get_pagination(
         user_id=callback.from_user.id, offset=page, limit=cfg.db.limit_phones
@@ -240,14 +248,15 @@ async def phone_base_list(callback: Message, db: Database):
 
     await callback.message.edit_text(
         BASES_LIST_MSG,
-        reply_markup=await create_bookmarks_keyboard(name_list, page, has_more),
+        reply_markup=await create_regex_pagination_mp(name_list, page, has_more),
     )
 
 
 @router.callback_query(F.data.startswith("next_page"))
-async def next_page(callback: Message, db: Database):
+async def next_page(callback: CallbackQuery, state: FSMContext, db: Database):
     await callback.answer()
     page = int(callback.data.split("|")[1])
+    await state.update_data(page=page)
 
     phones, has_more = await db.phone.get_pagination(
         user_id=callback.from_user.id,
@@ -259,14 +268,15 @@ async def next_page(callback: Message, db: Database):
 
     await callback.message.edit_text(
         BASES_LIST_MSG,
-        reply_markup=await create_bookmarks_keyboard(name_list, page, has_more),
+        reply_markup=await create_regex_pagination_mp(name_list, page, has_more),
     )
 
 
 @router.callback_query(F.data.startswith("prev_page"))
-async def prev_page(callback: Message, db: Database):
+async def prev_page(callback: CallbackQuery, state: FSMContext, db: Database):
     await callback.answer()
     page = int(callback.data.split("|")[1])
+    await state.update_data(page=page)
 
     phones, has_more = await db.phone.get_pagination(
         user_id=callback.from_user.id,
@@ -278,12 +288,12 @@ async def prev_page(callback: Message, db: Database):
 
     await callback.message.edit_text(
         BASES_LIST_MSG,
-        reply_markup=await create_bookmarks_keyboard(name_list, page, has_more),
+        reply_markup=await create_regex_pagination_mp(name_list, page, has_more),
     )
 
 
 @router.callback_query(F.data.startswith("phone_name"))
-async def phone_name(callback: Message, db: Database):
+async def phone_name(callback: CallbackQuery, db: Database):
     await callback.answer()
     name = callback.data.split("|")[1]
     phone = await db.phone.get(user_id=callback.from_user.id, name=name)
@@ -293,7 +303,7 @@ async def phone_name(callback: Message, db: Database):
 
 
 @router.callback_query(F.data.startswith("phone_edit_text"))
-async def phone_edit_text(callback: Message, state: FSMContext):
+async def phone_edit_text(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     name = callback.data.split("|")[1]
     await state.set_state(EditPhoneBaseState.text)
@@ -308,7 +318,7 @@ async def phone_edit_text(callback: Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("phone_edit_file"))
-async def phone_edit_file(callback: Message, state: FSMContext):
+async def phone_edit_file(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     name = callback.data.split("|")[1]
     await state.set_state(EditPhoneBaseState.file)
@@ -320,7 +330,7 @@ async def phone_edit_file(callback: Message, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("phone_get"))
-async def phone_get(callback: Message, db: Database):
+async def phone_get(callback: CallbackQuery, db: Database):
     await callback.answer()
     name = callback.data.split("|")[1]
     phone = await db.phone.get(user_id=callback.from_user.id, name=name)
@@ -340,7 +350,7 @@ async def phone_get(callback: Message, db: Database):
 
 
 @router.callback_query(F.data.startswith("phone_link"))
-async def phone_link(callback: Message, state: FSMContext):
+async def phone_link(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     name = callback.data.split("|")[1]
 
@@ -353,7 +363,9 @@ async def phone_link(callback: Message, state: FSMContext):
 
 
 @router.message(F.text, GetLinksState.quantity)
-async def phone_link_quantity(message: Message, state: FSMContext, db: Database):
+async def phone_link_quantity(
+    message: Message, state: FSMContext, db: Database, bot: Bot
+):
     try:
         quantity = int(message.text)
     except ValueError:
@@ -366,6 +378,7 @@ async def phone_link_quantity(message: Message, state: FSMContext, db: Database)
 
     data = await state.get_data()
     name = data.get("name")
+    page = data.get("page")
 
     phone = await db.phone.get(user_id=message.from_user.id, name=name)
     if len(phone.numbers.split("|")) <= phone.last_quantity:
@@ -379,14 +392,32 @@ async def phone_link_quantity(message: Message, state: FSMContext, db: Database)
 
     await state.clear()
     for chunk in split_chunks:
-        chunk = chunk.replace("end_of_text`", "`")
+        chunk = chunk.replace("end_of_text", "")
         await message.answer(
             chunk,
             reply_markup=start_mp,
             disable_web_page_preview=True,
-            parse_mode="markdownv2",
+            parse_mode=ParseMode.HTML,
         )
+        # await bot.edit_message_reply_markup(chat_id=message.from_user.id, message_id=msg.message_id, reply_markup=await copy_mp(msg.message_id))
+
+    text = phone_base_click_msg(phone.name, phone.text)
+    text = text.replace("end_of_text", "")
+
+    await message.answer(text, reply_markup=await create_phone_mp(name, True))
 
     await db.phone.update_last_quantity(
         user_id=message.from_user.id, name=name, last_quantity=quantity
     )
+
+
+@router.callback_query(F.data == "copy_text")
+async def copy_text(callback: CallbackQuery, bot: Bot):
+    text = callback.message.text
+
+    ok = copy_text_to_clipboard(text, bot)
+    if not ok:
+        await callback.answer(COPY_TEXT_ERROR_MSG, show_alert=True)
+        return
+
+    await callback.answer(COPY_TEXT_SUCCESS_MSG)
