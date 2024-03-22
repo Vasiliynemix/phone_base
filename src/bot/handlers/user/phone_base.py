@@ -5,6 +5,7 @@ from aiogram import Router, F, Bot
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, FSInputFile, CallbackQuery
+from loguru import logger
 
 from src.bot.handlers.funks import (
     get_list_random_text,
@@ -392,13 +393,17 @@ async def phone_link_quantity(
 
     await state.clear()
     for chunk in split_chunks:
-        chunk = chunk.replace("end_of_text", "")
-        await message.answer(
-            chunk,
-            reply_markup=start_mp,
-            disable_web_page_preview=True,
-            parse_mode=ParseMode.HTML,
-        )
+        try:
+            chunk = chunk.replace("end_of_text", "")
+            await message.answer(
+                chunk,
+                reply_markup=start_mp,
+                disable_web_page_preview=True,
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.error(f"Error sending message link: {e}")
+            continue
         # await bot.edit_message_reply_markup(chat_id=message.from_user.id, message_id=msg.message_id, reply_markup=await copy_mp(msg.message_id))
 
     text = phone_base_click_msg(phone.name, phone.text)
