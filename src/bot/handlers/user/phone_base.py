@@ -96,13 +96,13 @@ async def phone_base_csv(message: Message, state: FSMContext, db: Database, bot:
     file_id = message.document.file_id
 
     file_text = await get_file_text(bot, file_id)
-    ok = check_file_text(file_text)
-    if not ok:
-        await message.answer(
-            ADD_WRONG_FORMAT_CSV_MSG,
-            reply_markup=cancel_mp,
-        )
-        return
+    # ok = check_file_text(file_text)
+    # if not ok:
+    #     await message.answer(
+    #         ADD_WRONG_FORMAT_CSV_MSG,
+    #         reply_markup=cancel_mp,
+    #     )
+    #     return
 
     current_state = await state.get_state()
     if current_state == EditPhoneBaseState.file:
