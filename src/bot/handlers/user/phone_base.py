@@ -14,7 +14,7 @@ from src.bot.handlers.funks import (
     create_file_text,
     create_text_links,
     split_text,
-    copy_text_to_clipboard,
+    copy_text_to_clipboard, get_list_param_text,
 )
 from src.bot.keyboards.start import start_mp
 from src.bot.keyboards.user.inline.phone import create_phone_mp
@@ -164,9 +164,10 @@ async def phone_base_name(message: Message, state: FSMContext, db: Database):
 @router.message(F.text, EditPhoneBaseState.text)
 async def phone_base_text(message: Message, state: FSMContext, db: Database):
     matches = get_list_random_text(message.text)
+    params = get_list_param_text(message.text)
 
-    check_open = len(matches) == message.text.count("{")
-    check_cancel = len(matches) == message.text.count("}")
+    check_open = len(matches) + len(params) == message.text.count("{")
+    check_cancel = len(matches) + len(params) == message.text.count("}")
     check_pipe = len(matches) <= message.text.count("|")
 
     if not check_open or not check_cancel or not check_pipe:

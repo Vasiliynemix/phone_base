@@ -18,6 +18,10 @@ def get_list_random_text(text: str) -> list:
     return re.findall(cfg.regex.random_text_regex, text)
 
 
+def get_list_param_text(text: str) -> list:
+    return re.findall(cfg.regex.param_text_regex, text)
+
+
 async def get_file_text(bot: Bot, file_id: str) -> str:
     file = await bot.get_file(file_id)
     file_path = file.file_path
@@ -63,14 +67,17 @@ async def create_text_links(phones: Phone, quantity: int, last_quantity: int) ->
 
     text = ""
     for i, number in enumerate(numbers[:quantity]):
-        random_text = generate_random_text(phones.text)
-        text += f'<a href="{url}{number}?text={random_text}">{i + 1 + last_quantity}. {number}</a>\n'
+        numbers_info = number.split(",")
+        random_text = generate_random_text(phones.text, numbers_info)
+        text += f'<a href="{url}{numbers_info[0]}?text={random_text}">{i + 1 + last_quantity}. {numbers_info[0]}</a>\n'
 
     return text
 
 
-def generate_random_text(text: str) -> str:
+def generate_random_text(text: str, numbers_info: list) -> str:
     matches = get_list_random_text(text)
+    text = text.replace("{param1}", numbers_info[1])
+    text = text.replace("{param2}", numbers_info[2])
     for match in matches:
         match_replace = match.replace("{", "").replace("}", "")
         text_list = match_replace.split("|")

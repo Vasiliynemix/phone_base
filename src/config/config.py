@@ -88,6 +88,7 @@ class PathConfig:
 @dataclass
 class ReConfig:
     random_text_regex: str = "\{[^{}]*\|[^{}]*\}"  # noqa
+    param_text_regex: str = r"\{(param1|param2)\}"  # noqa
 
 
 @dataclass
