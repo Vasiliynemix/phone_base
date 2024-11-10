@@ -76,8 +76,18 @@ async def create_text_links(phones: Phone, quantity: int, last_quantity: int) ->
 
 def generate_random_text(text: str, numbers_info: list) -> str:
     matches = get_list_random_text(text)
-    text = text.replace("{param1}", numbers_info[1])
-    text = text.replace("{param2}", numbers_info[2])
+    try:
+        param_1 = numbers_info[1]
+    except IndexError:
+        param_1 = ""
+
+    try:
+        param_2 = numbers_info[2]
+    except IndexError:
+        param_2 = ""
+
+    text = text.replace("{param1}", param_1)
+    text = text.replace("{param2}", param_2)
     for match in matches:
         match_replace = match.replace("{", "").replace("}", "")
         text_list = match_replace.split("|")
