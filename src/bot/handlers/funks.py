@@ -28,7 +28,14 @@ async def get_file_text(bot: Bot, file_id: str) -> str:
     file_content = await bot.download_file(file_path)
     text = file_content.read().decode("utf-8")
     cleaned_text = text.replace("\ufeff", "").strip().replace("\r", "")
-    return cleaned_text.replace("\n", "|")
+    cleaned_text = cleaned_text.replace(";", ",")
+    cleaned_text = cleaned_text.replace("\n", "|")
+    cleaned_text = cleaned_text.replace("\"|\"", "|")
+    if cleaned_text[0] == "\"":
+        cleaned_text = cleaned_text[1:]
+    if cleaned_text[-1] == "\"":
+        cleaned_text = cleaned_text[:-1]
+    return cleaned_text
 
 
 def check_file_text(text: str) -> bool:
