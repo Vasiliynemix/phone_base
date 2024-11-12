@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, FSInputFile, CallbackQuery
 from loguru import logger
 
+from src.bot.filters.permission import PermissionFilter
 from src.bot.handlers.funks import (
     get_list_random_text,
     get_file_text,
@@ -60,6 +61,9 @@ from src.config.config import cfg
 from src.db.db import Database
 
 router = Router()
+
+router.message.filter(PermissionFilter())
+router.callback_query.filter(PermissionFilter())
 
 
 @router.message(F.text == "Отмена")

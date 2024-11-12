@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
+from src.db.repositories.permission import PermissionRepo
 from src.db.repositories.phone import PhoneRepo
 from src.db.repositories.user import UserRepo
 
@@ -30,3 +31,4 @@ class Database:
         self.session = session
         self.user = UserRepo(session)
         self.phone = PhoneRepo(session)
+        self.permission = PermissionRepo(session)

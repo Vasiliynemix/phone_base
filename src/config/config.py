@@ -13,6 +13,9 @@ load_dotenv()
 @dataclass
 class BotConfig:
     token: str = os.getenv("BOT_TOKEN")
+    admins: list[int] = field(
+        default_factory=lambda: list(map(int, os.getenv("ADMINS").split(",")))
+    )
 
 
 @dataclass

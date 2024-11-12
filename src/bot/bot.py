@@ -7,6 +7,8 @@ from loguru import logger
 from pkg.logger import Logger
 from src.bot.handlers.start import router as start_router
 from src.bot.handlers.user.phone_base import router as phone_base_router
+from src.bot.handlers.admin import router as admin_router
+from src.bot.handlers.other import router as other_router
 from src.bot.middlewares.db import DatabaseMiddleware
 from src.bot.middlewares.logger import LoggerMiddleware
 from src.bot.structures.transfer_data import TransferData
@@ -46,6 +48,10 @@ def get_dispatcher(
     dp.include_router(router=start_router)
 
     dp.include_router(router=phone_base_router)
+
+    dp.include_router(router=admin_router)
+
+    dp.include_router(router=other_router)
 
     dp.message.outer_middleware(DatabaseMiddleware())
     dp.callback_query.outer_middleware(DatabaseMiddleware())
